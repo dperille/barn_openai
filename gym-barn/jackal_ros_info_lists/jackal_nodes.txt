@@ -1,0 +1,10 @@
+# JACKAL NODES
+/controller_spawner
+/ekf_localization
+/gazebo
+/move_base
+/robot_state_publisher
+/rosout
+/rviz
+/twist_marker_server
+/twist_mux
