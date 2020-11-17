@@ -31,20 +31,31 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
         
         The Sensors: The sensors accesible are the ones considered usefull for AI learning.
         
+        # TODO: check that the odometry topic works, since there is /odometry/filtered and 
+        /jackal_velocity_controller/odom
         Sensor Topic List:
-        * /jackal_velocity_controller/odom : Odometry readings of the Base of the Robot
+        * /odometry/filtered : Odometry readings of the Base of the Robot
         * TODO: CHECK THIS /camera/depth/image_raw: 2d Depth image of the depth sensor.
         * TODO: CHECK THIS /camera/depth/points: Pointcloud sensor readings
         * TODO: CHECK THIS /camera/rgb/image_raw: RGB camera
         * /front/scan: Laser Readings
         
-        Actuators Topic List: /jackal_velocity_controller/cmd_vel, 
+        Actuators Topic List: /cmd_vel, 
         
         Args:
         """
         rospy.logdebug("Start JackalEnv INIT...")
         # Variables that we give through the constructor.
         # None in this case
+
+        # here the Husarion and Turtlebot templates differ
+        # the Husarion includes this code:
+        '''
+        ROSLauncher(rospackage_name="rosbot_gazebo",
+                    launch_file_name="put_robot_in_world.launch",
+                    ros_ws_abspath=ros_ws_abspath)
+        rospy.logerr(">>>>>>>>> ROSLAUNCHER DONE HusarionEnv INIT...")
+        '''
 
         # Internal Vars
         # Doesnt have any accesibles
@@ -54,7 +65,7 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
         self.robot_name_space = ""
 
         # We launch the init function of the Parent Class robot_gazebo_env.RobotGazeboEnv
-        super(TurtleBot2Env, self).__init__(controllers_list=self.controllers_list,
+        super(JackalEnv, self).__init__(controllers_list=self.controllers_list,
                                             robot_name_space=self.robot_name_space,
                                             reset_controls=False,
                                             start_init_physics_parameters=False,
@@ -68,13 +79,13 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
         self._check_all_sensors_ready()
 
         # We Start all the ROS related Subscribers and publishers
-        rospy.Subscriber("/jackal_velocity_controller/odom", Odometry, self._odom_callback)
+        rospy.Subscriber("/odometry/filtered", Odometry, self._odom_callback)
         #rospy.Subscriber("/camera/depth/image_raw", Image, self._camera_depth_image_raw_callback)
         #rospy.Subscriber("/camera/depth/points", PointCloud2, self._camera_depth_points_callback)
         #rospy.Subscriber("/camera/rgb/image_raw", Image, self._camera_rgb_image_raw_callback)
         rospy.Subscriber("/front/scan", LaserScan, self._laser_scan_callback)
 
-        self._cmd_vel_pub = rospy.Publisher('/jackal_velocity_controller/cmd_vel', Twist, queue_size=1)
+        self._cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
         self._check_publishers_connection()
 
@@ -110,14 +121,14 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
 
     def _check_odom_ready(self):
         self.odom = None
-        rospy.logdebug("Waiting for /odom to be READY...")
+        rospy.logdebug("Waiting for /odometry/filtered to be READY...")
         while self.odom is None and not rospy.is_shutdown():
             try:
-                self.odom = rospy.wait_for_message("/jackal_velocity_controller/odom", Odometry, timeout=5.0)
-                rospy.logdebug("Current /odom READY=>")
+                self.odom = rospy.wait_for_message("/odometry/filtered", Odometry, timeout=5.0)
+                rospy.logdebug("Current /odometry/filtered READY=>")
 
             except:
-                rospy.logerr("Current /odom not ready yet, retrying for getting odom")
+                rospy.logerr("Current /odometry/filtered not ready yet, retrying for getting /odometry/filtered")
 
         return self.odom
         
@@ -357,6 +368,7 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
     def get_odom(self):
         return self.odom
         
+    # TODO: check if these are needed in the task env
     def get_camera_depth_image_raw(self):
         return self.camera_depth_image_raw
         
