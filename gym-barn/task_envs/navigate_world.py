@@ -5,6 +5,7 @@ import math
 from gym import spaces
 from openai_ros.robot_envs import turtlebot2_env
 from gym.envs.registration import register
+from tf.transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header
 
@@ -69,7 +70,11 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         self.max_goal_yaw = 3.14
         self.min_goal_yaw = -3.14
 
-        # Assemble observation space -- [[LaserScan list], [x, y, yaw], [goal_x, goal_y, goal_yaw]]
+        self.goal_x = -1 # TODO - get from node
+        self.goal_y = -1 # TODO - get from node
+        self.goal_yaw = 0 # TODO - get from node
+
+        # Assemble observation space -- [LaserScan vals, | x, y, yaw, | goal_x, goal_y, goal_yaw]
         high_laser = np.full((self.n_laser_scan_values), self.max_laser_value)
         low_laser = np.full((self.n_laser_scan_values), self.min_laser_value)
 
@@ -146,25 +151,31 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
 
     def _get_obs(self):
         """
-        Here we define what sensor data defines our robots observations
-        To know which Variables we have acces to, we need to read the
-        TurtleBot2Env API DOCS
+        Get the current observations -- laser scan data, odometry position, goal position.
         :return:
         """
         rospy.logdebug("Start Get Observation ==>")
-        # We get the laser scan data
-        laser_scan = self.get_laser_scan()
         
-        rospy.logdebug("BEFORE DISCRET _episode_done==>"+str(self._episode_done))
-        
-        discretized_observations = self.discretize_observation( laser_scan,
-                                                                self.new_ranges
-                                                                )
+        # Get laser scan data
+        laser_scan = self.get_laser_scan().ranges
 
-        rospy.logdebug("Observations==>"+str(discretized_observations))
-        rospy.logdebug("AFTER DISCRET_episode_done==>"+str(self._episode_done))
+        # Get odometry data
+        odometry = self.get_odom()
+        x_position = odometry.pose.pose.position.x
+        y_position = odometry.pose.pose.position.y
+
+        roll, pitch, yaw = self.get_orientation_euler()
+        odometry_array = [x_position, y_position, yaw] # TODO - round?
+
+        # Get goal position
+        desired_position = [self.goal_x, self.goal_y, self.goal_yaw] # TODO - round?
+
+        # Concatenate observations
+        observations = laser_scan + odometry_array + desired_position
+
         rospy.logdebug("END Get Observation ==>")
-        return discretized_observations
+
+        return observations
         
 
     def _is_done(self, observations):
@@ -283,3 +294,13 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         
         
         self.laser_filtered_pub.publish(laser_filtered_object)
+
+    def get_orientation_euler(self):
+        # We convert from quaternions to euler
+        orientation_list = [self.odom.pose.pose.orientation.x,
+                            self.odom.pose.pose.orientation.y,
+                            self.odom.pose.pose.orientation.z,
+                            self.odom.pose.pose.orientation.w]
+    
+        roll, pitch, yaw = euler_from_quaternion(orientation_list)
+        return roll, pitch, yaw
