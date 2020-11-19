@@ -1,5 +1,5 @@
 import rospy
-import numpy
+import numpy as np
 import time
 import math
 from gym import spaces
@@ -11,93 +11,95 @@ from std_msgs.msg import Header
 # The path is __init__.py of openai_ros, where we import the TurtleBot2MazeEnv directly
 timestep_limit_per_episode = 100 # Can be any Value
 
+# TODO - change register values
 register(
         id='TurtleBot2Maze-v0',
         entry_point='openai_ros:task_envs.turtlebot2.turtlebot2_maze.TurtleBot2MazeEnv',
         timestep_limit=timestep_limit_per_episode,
     )
 
-class TurtleBot2MazeEnv(turtlebot2_env.TurtleBot2Env):
+# TODO - change names
+class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
     def __init__(self):
         """
-        This Task Env is designed for having the TurtleBot2 in some kind of maze.
+        This Task Env is designed for having Jackal in some sort of maze.
         It will learn how to move around the maze without crashing.
         """
         
-        # Only variable needed to be set here
-        number_actions = rospy.get_param('/turtlebot2/n_actions')
-        self.action_space = spaces.Discrete(number_actions)
-        
-        # We set the reward range, which is not compulsory but here we do it.
-        self.reward_range = (-numpy.inf, numpy.inf)
-        
-        
-        #number_observations = rospy.get_param('/turtlebot2/n_observations')
-        """
-        We set the Observation space for the 6 observations
-        cube_observations = [
-            round(current_disk_roll_vel, 0),
-            round(y_distance, 1),
-            round(roll, 1),
-            round(pitch, 1),
-            round(y_linear_speed,1),
-            round(yaw, 1),
-        ]
-        """
-        
-        # Actions and Observations
-        self.dec_obs = rospy.get_param("/turtlebot2/number_decimals_precision_obs", 1)
-        self.linear_forward_speed = rospy.get_param('/turtlebot2/linear_forward_speed')
-        self.linear_turn_speed = rospy.get_param('/turtlebot2/linear_turn_speed')
-        self.angular_speed = rospy.get_param('/turtlebot2/angular_speed')
-        self.init_linear_forward_speed = rospy.get_param('/turtlebot2/init_linear_forward_speed')
-        self.init_linear_turn_speed = rospy.get_param('/turtlebot2/init_linear_turn_speed')
-        
-        
-        self.n_observations = rospy.get_param('/turtlebot2/n_observations')
-        self.min_range = rospy.get_param('/turtlebot2/min_range')
-        self.max_laser_value = rospy.get_param('/turtlebot2/max_laser_value')
-        self.min_laser_value = rospy.get_param('/turtlebot2/min_laser_value')
-        
-        # Here we will add any init functions prior to starting the MyRobotEnv
-        super(TurtleBot2MazeEnv, self).__init__()
-        
-        # We create two arrays based on the binary values that will be assigned
-        # In the discretization method.
-        #laser_scan = self._check_laser_scan_ready()
-        laser_scan = self.get_laser_scan()
-        rospy.logdebug("laser_scan len===>"+str(len(laser_scan.ranges)))
-        
-        # Laser data
-        self.laser_scan_frame = laser_scan.header.frame_id
+        ### ACTIONS ###
+        # TODO - max acceleration params
+        self.min_linear_vel = 0
+        self.max_linear_vel = rospy.get_param('/jackal_velocity_controller/linear/x/max_velocity')
 
+        self.min_angular_vel = 0
+        self.max_angular_vel = rospy.get_param('/jackal_velocity_controller/angular/z/max_velocity')
+
+        # Action space is (linear velocity, angular velocity) pair
+        self.action_space = spaces.Box(np.array([self.min_linear_vel, self.min_angular_vel]),
+                                       np.array([self.max_linear_vel, self.max_angular_vel]),
+                                       dtype=np.float32)
         
         
-        # Number of laser reading jumped
-        self.new_ranges = int(math.ceil(float(len(laser_scan.ranges)) / float(self.n_observations)))
+        ### OBSERVATIONS ###
+        self.precision = 0 #TODO - precision parameter
+
+        # Initial speeds
+        self.init_linear_speed = 0
+        self.init_angular_speed = 0
         
-        rospy.logdebug("n_observations===>"+str(self.n_observations))
-        rospy.logdebug("new_ranges, jumping laser readings===>"+str(self.new_ranges))
+        # Laser scan parameters
+        laser_scan = self._check_laser_scan_ready()
+        self.n_laser_scan_values = len(laser_scan.ranges)
+        self.max_laser_value = laser_scan.range_max
+        self.min_laser_value = laser_scan.range_min
         
-        
-        high = numpy.full((self.n_observations), self.max_laser_value)
-        low = numpy.full((self.n_observations), self.min_laser_value)
-        
-        # We only use two integers
+        # Pose and goal parameters - TODO (highest values possible for position, goal)
+        self.max_odom_x = 10
+        self.min_odom_x = -10
+        self.max_odom_y = 10
+        self.min_odom_y = -5
+        self.max_odom_yaw = 3.14
+        self.min_odom_yaw = -3.14
+
+        self.max_goal_x = 10
+        self.min_goal_x = -10
+        self.max_goal_y = 10
+        self.min_goal_y = -5
+        self.max_goal_yaw = 3.14
+        self.min_goal_yaw = -3.14
+
+        # Assemble observation space -- [[LaserScan list], [x, y, yaw], [goal_x, goal_y, goal_yaw]]
+        high_laser = np.full((self.n_laser_scan_values), self.max_laser_value)
+        low_laser = np.full((self.n_laser_scan_values), self.min_laser_value)
+
+        high_odom = np.array([self.max_odom_x, self.max_odom_y, self.max_odom_yaw])
+        low_odom = np.array([self.min_odom_x, self.min_odom_y, self.min_odom_yaw])
+
+        high_goal = np.array([self.max_goal_x, self.max_goal_y, self.max_goal_yaw])
+        low_goal = np.array([self.min_goal_x, self.min_goal_y, self.min_goal_yaw])
+
+        high = np.concatenate([high_laser, high_odom, high_goal])
+        low = np.concatenate([low_laser, low_odom, low_goal])
+
         self.observation_space = spaces.Box(low, high)
-        
-        
-        rospy.logdebug("ACTION SPACES TYPE===>"+str(self.action_space))
-        rospy.logdebug("OBSERVATION SPACES TYPE===>"+str(self.observation_space))
-        
-        # Rewards
-        self.forwards_reward = rospy.get_param("/turtlebot2/forwards_reward")
-        self.turn_reward = rospy.get_param("/turtlebot2/turn_reward")
-        self.end_episode_points = rospy.get_param("/turtlebot2/end_episode_points")
+
+
+        ### REWARDS
+        # We set the reward range, which is not compulsory but here we do it.
+        self.reward_range = (-np.inf, np.inf)
+
+        # TODO - get reward params
+        self.step_penalty = -1      # penalty for each step without reaching goal
+        self.goal_reward = 50       # reward for reaching goal
 
         self.cumulated_steps = 0.0
+        self.cumulated_reward = 0.0
+        
+        # Here we will add any init functions prior to starting the MyRobotEnv
+        super(JackalMazeEnv, self).__init__()
 
-        self.laser_filtered_pub = rospy.Publisher('/turtlebot2/laser/scan_filtered', LaserScan, queue_size=1)
+        # rospy.logdebug("")
+        # self.laser_filtered_pub = rospy.Publisher('/turtlebot2/laser/scan_filtered', LaserScan, queue_size=1)
 
     def _set_init_pose(self):
         """Sets the Robot in its init pose
@@ -140,6 +142,9 @@ class TurtleBot2MazeEnv(turtlebot2_env.TurtleBot2Env):
         :param action: The action integer that set s what movement to do next.
         """
         
+
+
+        """
         rospy.logdebug("Start Set Action ==>"+str(action))
         # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
         if action == 0: #FORWARD
@@ -163,6 +168,7 @@ class TurtleBot2MazeEnv(turtlebot2_env.TurtleBot2Env):
                         min_laser_distance=self.min_range)
         
         rospy.logdebug("END Set Action ==>"+str(action)+", NAME="+str(self.last_action))
+        """
 
     def _get_obs(self):
         """
@@ -238,10 +244,10 @@ class TurtleBot2MazeEnv(turtlebot2_env.TurtleBot2Env):
         
         for i, item in enumerate(data.ranges):
             if (i%mod==0):
-                if item == float ('Inf') or numpy.isinf(item):
+                if item == float ('Inf') or np.isinf(item):
                     #discretized_ranges.append(self.max_laser_value)
                     discretized_ranges.append(round(max_laser_value,self.dec_obs))
-                elif numpy.isnan(item):
+                elif np.isnan(item):
                     #discretized_ranges.append(self.min_laser_value)
                     discretized_ranges.append(round(min_laser_value,self.dec_obs))
                 else:
