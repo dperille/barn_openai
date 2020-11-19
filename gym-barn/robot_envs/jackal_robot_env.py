@@ -12,39 +12,50 @@ from geometry_msgs.msg import Twist
 
 
 
-class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
+class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
     """Superclass for all CubeSingleDisk environments.
     """
 
     def __init__(self):
         """
-        Initializes a new TurtleBot2Env environment.
-        Turtlebot2 doesnt use controller_manager, therefore we wont reset the 
-        controllers in the standard fashion. For the moment we wont reset them.
+        Initializes a new JackalEnv environment.
+        TODO: check this: Turtlebot2 doesnt use controller_manager, therefore we wont reset the 
+        controllers in the standard fashion. For the moment we won't reset them.
         
         To check any topic we need to have the simulations running, we need to do two things:
         1) Unpause the simulation: without that th stream of data doesnt flow. This is for simulations
         that are pause for whatever the reason
         2) If the simulation was running already for some reason, we need to reset the controlers.
-        This has to do with the fact that some plugins with tf, dont understand the reset of the simulation
+        This has to do with the fact that some plugins with tf, don't understand the reset of the simulation
         and need to be reseted to work properly.
         
         The Sensors: The sensors accesible are the ones considered usefull for AI learning.
         
+        # TODO: check that the odometry topic works, since there is /odometry/filtered and 
+        /jackal_velocity_controller/odom
         Sensor Topic List:
-        * /odom : Odometry readings of the Base of the Robot
-        * /camera/depth/image_raw: 2d Depth image of the depth sensor.
-        * /camera/depth/points: Pointcloud sensor readings
-        * /camera/rgb/image_raw: RGB camera
-        * /kobuki/laser/scan: Laser Readings
+        * /odometry/filtered : Odometry readings of the Base of the Robot
+        * TODO: CHECK THIS /camera/depth/image_raw: 2d Depth image of the depth sensor.
+        * TODO: CHECK THIS /camera/depth/points: Pointcloud sensor readings
+        * TODO: CHECK THIS /camera/rgb/image_raw: RGB camera
+        * /front/scan: Laser Readings
         
         Actuators Topic List: /cmd_vel, 
         
         Args:
         """
-        rospy.logdebug("Start TurtleBot2Env INIT...")
+        rospy.logdebug("Start JackalEnv INIT...")
         # Variables that we give through the constructor.
         # None in this case
+
+        # here the Husarion and Turtlebot templates differ
+        # the Husarion includes this code:
+        '''
+        ROSLauncher(rospackage_name="rosbot_gazebo",
+                    launch_file_name="put_robot_in_world.launch",
+                    ros_ws_abspath=ros_ws_abspath)
+        rospy.logerr(">>>>>>>>> ROSLAUNCHER DONE HusarionEnv INIT...")
+        '''
 
         # Internal Vars
         # Doesnt have any accesibles
@@ -54,7 +65,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
         self.robot_name_space = ""
 
         # We launch the init function of the Parent Class robot_gazebo_env.RobotGazeboEnv
-        super(TurtleBot2Env, self).__init__(controllers_list=self.controllers_list,
+        super(JackalEnv, self).__init__(controllers_list=self.controllers_list,
                                             robot_name_space=self.robot_name_space,
                                             reset_controls=False,
                                             start_init_physics_parameters=False,
@@ -68,11 +79,11 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
         self._check_all_sensors_ready()
 
         # We Start all the ROS related Subscribers and publishers
-        rospy.Subscriber("/odom", Odometry, self._odom_callback)
+        rospy.Subscriber("/odometry/filtered", Odometry, self._odom_callback)
         #rospy.Subscriber("/camera/depth/image_raw", Image, self._camera_depth_image_raw_callback)
         #rospy.Subscriber("/camera/depth/points", PointCloud2, self._camera_depth_points_callback)
         #rospy.Subscriber("/camera/rgb/image_raw", Image, self._camera_rgb_image_raw_callback)
-        rospy.Subscriber("/kobuki/laser/scan", LaserScan, self._laser_scan_callback)
+        rospy.Subscriber("/front/scan", LaserScan, self._laser_scan_callback)
 
         self._cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 
@@ -80,7 +91,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
 
         self.gazebo.pauseSim()
         
-        rospy.logdebug("Finished TurtleBot2Env INIT...")
+        rospy.logdebug("Finished JackalEnv INIT...")
 
     # Methods needed by the RobotGazeboEnv
     # ----------------------------
@@ -110,18 +121,18 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
 
     def _check_odom_ready(self):
         self.odom = None
-        rospy.logdebug("Waiting for /odom to be READY...")
+        rospy.logdebug("Waiting for /odometry/filtered to be READY...")
         while self.odom is None and not rospy.is_shutdown():
             try:
-                self.odom = rospy.wait_for_message("/odom", Odometry, timeout=5.0)
-                rospy.logdebug("Current /odom READY=>")
+                self.odom = rospy.wait_for_message("/odometry/filtered", Odometry, timeout=5.0)
+                rospy.logdebug("Current /odometry/filtered READY=>")
 
             except:
-                rospy.logerr("Current /odom not ready yet, retrying for getting odom")
+                rospy.logerr("Current /odometry/filtered not ready yet, retrying for getting /odometry/filtered")
 
         return self.odom
         
-        
+    # TODO: IS THIS NEEDED?
     def _check_camera_depth_image_raw_ready(self):
         self.camera_depth_image_raw = None
         rospy.logdebug("Waiting for /camera/depth/image_raw to be READY...")
@@ -134,7 +145,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
                 rospy.logerr("Current /camera/depth/image_raw not ready yet, retrying for getting camera_depth_image_raw")
         return self.camera_depth_image_raw
         
-        
+    # TODO: IS THIS NEEDED?
     def _check_camera_depth_points_ready(self):
         self.camera_depth_points = None
         rospy.logdebug("Waiting for /camera/depth/points to be READY...")
@@ -147,7 +158,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
                 rospy.logerr("Current /camera/depth/points not ready yet, retrying for getting camera_depth_points")
         return self.camera_depth_points
         
-        
+    # TODO: IS THIS NEEDED?
     def _check_camera_rgb_image_raw_ready(self):
         self.camera_rgb_image_raw = None
         rospy.logdebug("Waiting for /camera/rgb/image_raw to be READY...")
@@ -163,14 +174,14 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
 
     def _check_laser_scan_ready(self):
         self.laser_scan = None
-        rospy.logdebug("Waiting for /kobuki/laser/scan to be READY...")
+        rospy.logdebug("Waiting for /front/scan to be READY...")
         while self.laser_scan is None and not rospy.is_shutdown():
             try:
-                self.laser_scan = rospy.wait_for_message("/kobuki/laser/scan", LaserScan, timeout=5.0)
-                rospy.logdebug("Current /kobuki/laser/scan READY=>")
+                self.laser_scan = rospy.wait_for_message("/front/scan", LaserScan, timeout=5.0)
+                rospy.logdebug("Current /front/scan READY=>")
 
             except:
-                rospy.logerr("Current /kobuki/laser/scan not ready yet, retrying for getting laser_scan")
+                rospy.logerr("Current /front/scan not ready yet, retrying for getting laser_scan")
         return self.laser_scan
         
 
@@ -255,11 +266,12 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
         cmd_vel_value = Twist()
         cmd_vel_value.linear.x = linear_speed
         cmd_vel_value.angular.z = angular_speed
-        rospy.logdebug("TurtleBot2 Base Twist Cmd>>" + str(cmd_vel_value))
+        rospy.logdebug("Jackal Base Twist Cmd>>" + str(cmd_vel_value))
         self._check_publishers_connection()
         self._cmd_vel_pub.publish(cmd_vel_value)
         time.sleep(0.2)
         #time.sleep(0.02)
+        # TODO: why is the self.wait_until_twist_achieved commented out?
         """
         self.wait_until_twist_achieved(cmd_vel_value,
                                         epsilon,
@@ -315,7 +327,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
                 break
             
             if crashed_into_something:
-                rospy.logerr("TurtleBot has crashed, stopping movement!")
+                rospy.logerr("Jackal has crashed, stopping movement!")
                 break
             
             rospy.logwarn("Not there yet, keep waiting...")
@@ -332,7 +344,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
         It states based on the laser scan if the robot has crashed or not.
         Crashed means that the minimum laser reading is lower than the
         min_laser_distance value given.
-        If min_laser_distance == -1, it returns always false, because its the way
+        If min_laser_distance == -1, it returns always false, because it's the way
         to deactivate this check.
         """
         robot_has_crashed = False
@@ -347,7 +359,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
                 else:
                     # Has a Non Infinite or Nan Value
                     if (item < min_laser_distance):
-                        rospy.logerr("TurtleBot HAS CRASHED >>> item=" + str(item)+"< "+str(min_laser_distance))
+                        rospy.logerr("Jackal HAS CRASHED >>> item=" + str(item)+"< "+str(min_laser_distance))
                         robot_has_crashed = True
                         break
         return robot_has_crashed
@@ -356,6 +368,7 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
     def get_odom(self):
         return self.odom
         
+    # TODO: check if these are needed in the task env
     def get_camera_depth_image_raw(self):
         return self.camera_depth_image_raw
         
@@ -374,4 +387,4 @@ class TurtleBot2Env(robot_gazebo_env.RobotGazeboEnv):
         the sensors values are forced to be updated with the real data and 
         
         """
-        
+        # TODO: how is this method used?
