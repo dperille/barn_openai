@@ -42,6 +42,7 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         
         ### OBSERVATIONS ###
         self.precision = 0 #TODO - precision parameter
+        self.move_base_precision = 0.05 #TODO - precision parameter
 
         # Initial speeds
         self.init_linear_speed = 0
@@ -127,48 +128,21 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         # We wait a small ammount of time to start everything because in very fast resets, laser scan values are sluggish
         # and sometimes still have values from the prior position that triguered the done.
         time.sleep(1.0)
-        
-        # TODO: Add reset of published filtered laser readings
-        laser_scan = self.get_laser_scan()
-        discretized_ranges = laser_scan.ranges
-        self.publish_filtered_laser_scan(   laser_original_data=laser_scan,
-                                         new_filtered_laser_range=discretized_ranges)
-
 
     def _set_action(self, action):
         """
-        This set action will Set the linear and angular speed of the turtlebot2
-        based on the action number given.
+        This set action will Set the linear and angular speed of Jackal.
         :param action: The action integer that set s what movement to do next.
         """
         
+        # Action is (linear velocity, angular velocity) pair
+        linear_velocity = action[0]
+        angular_velocity = action[1]
+        rospy.logdebug("Set Action ==> " + str(linear_velocity) + ", " + str(angular_velocity))
 
-
-        """
-        rospy.logdebug("Start Set Action ==>"+str(action))
-        # We convert the actions to speed movements to send to the parent class CubeSingleDiskEnv
-        if action == 0: #FORWARD
-            linear_speed = self.linear_forward_speed
-            angular_speed = 0.0
-            self.last_action = "FORWARDS"
-        elif action == 1: #LEFT
-            linear_speed = self.linear_turn_speed
-            angular_speed = self.angular_speed
-            self.last_action = "TURN_LEFT"
-        elif action == 2: #RIGHT
-            linear_speed = self.linear_turn_speed
-            angular_speed = -1*self.angular_speed
-            self.last_action = "TURN_RIGHT"
-        
-        # We tell TurtleBot2 the linear and angular speed to set to execute
-        self.move_base( linear_speed,
-                        angular_speed,
-                        epsilon=0.05,
-                        update_rate=10,
-                        min_laser_distance=self.min_range)
-        
-        rospy.logdebug("END Set Action ==>"+str(action)+", NAME="+str(self.last_action))
-        """
+        # Check if larger than max velocity
+        # TODO - check if acceleration is greater than allowed
+        self.move_base(linear_velocity, angular_velocity, epsilon=self.move_base_precision, update_rate=10)
 
     def _get_obs(self):
         """
