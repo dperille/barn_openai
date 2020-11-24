@@ -179,13 +179,22 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         
 
     def _is_done(self, observations):
-        
-        if self._episode_done:
-            rospy.logdebug("TurtleBot2 is Too Close to wall==>"+str(self._episode_done))
-        else:
-            rospy.logerr("TurtleBot2 is Ok ==>")
+        """
+        Episode is done if:
+        1) Jackal is outside world boundaries
+        2) Jackal is too close to an obstacle
+        3) Jackal has reached the goal
+        """
 
-        return self._episode_done
+        # get current [x, y, yaw]
+        current_position = [observations[-6], observations[-5], observations[-4]]
+
+        is_done = self._is_outside_boundaries(current_position) or _has_crashed(current_position)
+               or _reached_goal(current_position)
+
+        rospy.logdebug("_IS_DONE? ==> " + str(is_done))
+
+        return is_done
 
     def _compute_reward(self, observations, done):
 
@@ -208,92 +217,6 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
 
 
     # Internal TaskEnv Methods
-    
-    def discretize_observation(self,data,new_ranges):
-        """
-        Discards all the laser readings that are not multiple in index of new_ranges
-        value.
-        """
-        self._episode_done = False
-        
-        discretized_ranges = []
-        filtered_range = []
-        #mod = len(data.ranges)/new_ranges
-        mod = new_ranges
-        
-        max_laser_value = data.range_max
-        min_laser_value = data.range_min
-        
-        rospy.logdebug("data=" + str(data))
-        rospy.logwarn("mod=" + str(mod))
-        
-        for i, item in enumerate(data.ranges):
-            if (i%mod==0):
-                if item == float ('Inf') or np.isinf(item):
-                    #discretized_ranges.append(self.max_laser_value)
-                    discretized_ranges.append(round(max_laser_value,self.dec_obs))
-                elif np.isnan(item):
-                    #discretized_ranges.append(self.min_laser_value)
-                    discretized_ranges.append(round(min_laser_value,self.dec_obs))
-                else:
-                    #discretized_ranges.append(int(item))
-                    discretized_ranges.append(round(item,self.dec_obs))
-                    
-                if (self.min_range > item > 0):
-                    rospy.logerr("done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-                    self._episode_done = True
-                else:
-                    rospy.logwarn("NOT done Validation >>> item=" + str(item)+"< "+str(self.min_range))
-                # We add last value appended
-                filtered_range.append(discretized_ranges[-1])
-            else:
-                # We add value zero
-                filtered_range.append(0.1)
-                    
-        rospy.logdebug("Size of observations, discretized_ranges==>"+str(len(discretized_ranges)))
-        
-        
-        self.publish_filtered_laser_scan(   laser_original_data=data,
-                                            new_filtered_laser_range=discretized_ranges)
-        
-        return discretized_ranges
-        
-    
-    def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):
-        
-        rospy.logdebug("new_filtered_laser_range==>"+str(new_filtered_laser_range))
-        
-        laser_filtered_object = LaserScan()
-
-        h = Header()
-        h.stamp = rospy.Time.now() # Note you need to call rospy.init_node() before this will work
-        h.frame_id = laser_original_data.header.frame_id
-        
-        laser_filtered_object.header = h
-        laser_filtered_object.angle_min = laser_original_data.angle_min
-        laser_filtered_object.angle_max = laser_original_data.angle_max
-        
-        new_angle_incr = abs(laser_original_data.angle_max - laser_original_data.angle_min) / len(new_filtered_laser_range)
-        
-        #laser_filtered_object.angle_increment = laser_original_data.angle_increment
-        laser_filtered_object.angle_increment = new_angle_incr
-        laser_filtered_object.time_increment = laser_original_data.time_increment
-        laser_filtered_object.scan_time = laser_original_data.scan_time
-        laser_filtered_object.range_min = laser_original_data.range_min
-        laser_filtered_object.range_max = laser_original_data.range_max
-        
-        laser_filtered_object.ranges = []
-        laser_filtered_object.intensities = []
-        for item in new_filtered_laser_range:
-            if item == 0.0:
-                laser_distance = 0.1
-            else:
-                laser_distance = item
-            laser_filtered_object.ranges.append(laser_distance)
-            laser_filtered_object.intensities.append(item)
-        
-        
-        self.laser_filtered_pub.publish(laser_filtered_object)
 
     def get_orientation_euler(self):
         # We convert from quaternions to euler
@@ -304,3 +227,44 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
     
         roll, pitch, yaw = euler_from_quaternion(orientation_list)
         return roll, pitch, yaw
+
+    # current_position: list of [x_pos, y_pos, yaw]
+    def _is_outside_boundaries(self, current_position):
+
+        x_pos = current_position[0]
+        y_pos = current_position[1]
+
+        if x_pos < self.min_odom_x or x_pos > self.max_odom_x:
+            return True
+        elif y_pos < self.min_odom_y or y_pos > self.max_odom_y:
+            return True
+        else:
+            return False
+
+    # return true if jackal has crashed into an obstacle
+    def _has_crashed(self, laser_readings):
+
+        for dist in laser_readings:
+            if dist <= self.min_laser_value:
+                rospy.logdebug("JACKAL CRASHED")
+                return True
+
+        return False
+
+    # return true if jackal is within epsilon of the goal position
+    def _reached_goal(self, current_position, goal_position, epsilon=0.1):
+
+        x_pos = current_position[0]
+        y_pos = current_position[1]
+
+        x_goal = goal_position[0]
+        y_goal = goal_position[1]
+
+        return math.sqrt( (x_pos - x_goal) ** 2 + (y_pos - y_goal) ** 2) < epsilon
+
+
+
+    # Formerly here but unused:
+    # def discretize_scan_observation(self,data,new_ranges):
+    # def update_desired_pos(self,new_position):
+    # def publish_filtered_laser_scan(self, laser_original_data, new_filtered_laser_range):
