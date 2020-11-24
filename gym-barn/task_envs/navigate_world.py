@@ -96,6 +96,7 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
 
         # TODO - get reward params
         self.step_penalty = -1      # penalty for each step without reaching goal
+        self.fail_penalty = -20     # penalty when episode finish without reaching goal
         self.goal_reward = 50       # reward for reaching goal
 
         self.cumulated_steps = 0.0
@@ -197,15 +198,26 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         return is_done
 
     def _compute_reward(self, observations, done):
+        """
+        Simple reward initially: small negative reward every
+        step and on failure, big positive reward for reaching goal
+        """
 
-        if not done:
-            if self.last_action == "FORWARDS":
-                reward = self.forwards_reward
+        reward = 0.0
+        current_position = [observations[-6], observations[-5], observations[-4]]
+        goal_position = [observations[-3], observations[-2], observations[-1]]
+
+        if done:
+            # If done and reached goal (success), big positive reward
+            if _reached_goal(current_position, goal_position, epsilon=0.1)
+                reward = self.goal_reward
+
+            # If done because of failure, negative reward
             else:
-                reward = self.turn_reward
-        else:
-            reward = -1*self.end_episode_points
+                reward = self.fail_penalty
 
+        else:
+            reward = self.step_penalty
 
         rospy.logdebug("reward=" + str(reward))
         self.cumulated_reward += reward
