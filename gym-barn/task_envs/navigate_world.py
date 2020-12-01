@@ -65,8 +65,8 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         
         
         ### OBSERVATIONS ###
-        self.precision = 0 #TODO - precision parameter
-        self.move_base_precision = 0.05 #TODO - precision parameter
+        self.goal_precision = 0.10
+        self.move_base_precision = 0.05 #TODO - precision parameters
 
         # Initial speeds
         self.init_linear_speed = 0
@@ -213,7 +213,7 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         current_position = [observations[-6], observations[-5], observations[-4]]
 
         is_done = self._is_outside_boundaries(current_position) or _has_crashed(current_position)
-               or _reached_goal(current_position)
+               or _reached_goal(current_position, self.goal_precision)
 
         rospy.logdebug("_IS_DONE? ==> " + str(is_done))
 
@@ -231,7 +231,7 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
 
         if done:
             # If done and reached goal (success), big positive reward
-            if _reached_goal(current_position, goal_position, epsilon=0.1)
+            if _reached_goal(current_position, goal_position, self.goal_precision)
                 reward = self.goal_reward
 
             # If done because of failure, negative reward
