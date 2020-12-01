@@ -3,7 +3,7 @@ import numpy as np
 import time
 import math
 from gym import spaces
-from openai_ros.robot_envs import turtlebot2_env
+from openai_ros.robot_envs import jackal_robot_env
 from gym.envs.registration import register
 from tf.transformations import euler_from_quaternion
 from sensor_msgs.msg import LaserScan
@@ -12,15 +12,8 @@ from std_msgs.msg import Header
 # The path is __init__.py of openai_ros, where we import the TurtleBot2MazeEnv directly
 timestep_limit_per_episode = 100 # Can be any Value
 
-# TODO - change register values
-register(
-        id='TurtleBot2Maze-v0',
-        entry_point='openai_ros:task_envs.turtlebot2.turtlebot2_maze.TurtleBot2MazeEnv',
-        timestep_limit=timestep_limit_per_episode,
-    )
-
 # TODO - change names
-class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
+class JackalMazeEnv(jackal_robot_env.JackalEnv):
     def __init__(self):
         """
         This Task Env is designed for having Jackal in some sort of maze.
