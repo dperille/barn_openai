@@ -42,7 +42,7 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
 
         # Load Params from the desired Yaml file
         LoadYamlFileParamsTest(rospackage_name="openai_ros",
-                               rel_path_from_package_to_file="src/openai_ros/task_envs/jackal/config",
+                               rel_path_from_package_to_file="src/openai_ros/task_envs/config",
                                yaml_file_name="jackal_maze.yaml")
 
         # Here we will add any init functions prior to starting the MyRobotEnv
