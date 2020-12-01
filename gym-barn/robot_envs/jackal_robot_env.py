@@ -35,9 +35,6 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
         /jackal_velocity_controller/odom
         Sensor Topic List:
         * /odometry/filtered : Odometry readings of the Base of the Robot
-        * TODO: CHECK THIS /camera/depth/image_raw: 2d Depth image of the depth sensor.
-        * TODO: CHECK THIS /camera/depth/points: Pointcloud sensor readings
-        * TODO: CHECK THIS /camera/rgb/image_raw: RGB camera
         * /front/scan: Laser Readings
         
         Actuators Topic List: /cmd_vel, 
@@ -50,12 +47,12 @@ class JackalEnv(robot_gazebo_env.RobotGazeboEnv):
 
         # here the Husarion and Turtlebot templates differ
         # the Husarion includes this code:
-        '''
-        ROSLauncher(rospackage_name="rosbot_gazebo",
-                    launch_file_name="put_robot_in_world.launch",
+        
+        ROSLauncher(rospackage_name="jackal_gazebo",
+                    launch_file_name="spawn_jackal.launch",
                     ros_ws_abspath=ros_ws_abspath)
-        rospy.logerr(">>>>>>>>> ROSLAUNCHER DONE HusarionEnv INIT...")
-        '''
+        rospy.logerr(">>>>>>>>> ROSLAUNCHER DONE JackalEnv INIT...")
+        
 
         # Internal Vars
         # Doesnt have any accesibles
