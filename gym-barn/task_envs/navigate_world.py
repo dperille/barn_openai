@@ -50,6 +50,8 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         
         ### ACTIONS ###
         # TODO - max acceleration params
+        # TODO: see if the params need to be transferred over to 
+        # jackal_maze.yaml
         self.min_linear_vel = 0
         self.max_linear_vel = rospy.get_param('/jackal_velocity_controller/linear/x/max_velocity')
 
