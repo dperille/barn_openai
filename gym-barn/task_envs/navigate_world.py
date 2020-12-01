@@ -26,6 +26,27 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         This Task Env is designed for having Jackal in some sort of maze.
         It will learn how to move around the maze without crashing.
         """
+
+        # This is the path where the simulation files, the Task and the Robot gits will be downloaded if not there
+        # This parameter HAS to be set up in the MAIN launch of the AI RL script
+        ros_ws_abspath = rospy.get_param("/jackal/ros_ws_abspath", None)
+        assert ros_ws_abspath is not None, "You forgot to set ros_ws_abspath in your yaml file of your main RL script. Set ros_ws_abspath: \'YOUR/SIM_WS/PATH\'"
+        assert os.path.exists(ros_ws_abspath), "The Simulation ROS Workspace path "+ros_ws_abspath + \
+            " DOESNT exist, execute: mkdir -p "+ros_ws_abspath + \
+            "/src;cd "+ros_ws_abspath+";catkin_make"
+
+        # TODO: modify this
+        ROSLauncher(rospackage_name="jackal_gazebo",
+                    launch_file_name="jackal_world.launch",
+                    ros_ws_abspath=ros_ws_abspath)
+
+        # Load Params from the desired Yaml file
+        LoadYamlFileParamsTest(rospackage_name="openai_ros",
+                               rel_path_from_package_to_file="src/openai_ros/task_envs/jackal/config",
+                               yaml_file_name="jackal_maze.yaml")
+
+        # Here we will add any init functions prior to starting the MyRobotEnv
+        super(JackalMazeEnv, self).__init__()
         
         ### ACTIONS ###
         # TODO - max acceleration params
@@ -102,8 +123,7 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
         self.cumulated_steps = 0.0
         self.cumulated_reward = 0.0
         
-        # Here we will add any init functions prior to starting the MyRobotEnv
-        super(JackalMazeEnv, self).__init__()
+        
 
         # rospy.logdebug("")
         # self.laser_filtered_pub = rospy.Publisher('/turtlebot2/laser/scan_filtered', LaserScan, queue_size=1)
