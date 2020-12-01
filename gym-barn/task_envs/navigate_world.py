@@ -36,8 +36,9 @@ class JackalMazeEnv(turtlebot2_env.TurtleBot2Env):
             "/src;cd "+ros_ws_abspath+";catkin_make"
 
         # TODO: modify this
+        # TODO: create jackal_barn.launch and specify a BARN world
         ROSLauncher(rospackage_name="jackal_gazebo",
-                    launch_file_name="jackal_world.launch",
+                    launch_file_name="jackal_barn.launch",
                     ros_ws_abspath=ros_ws_abspath)
 
         # Load Params from the desired Yaml file
